@@ -1,5 +1,6 @@
 from torchvision.transforms import transforms
 import torchvision
+import torch
 
 def simsiam_cifar10_loader(batch_size):
   
