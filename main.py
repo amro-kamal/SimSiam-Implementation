@@ -22,39 +22,32 @@ import os
 from knn_predictor import BenchmarkModule
 from data import simsiam_cifar10_loader, cifar10_loader
 
+parser = argparse.ArgumentParser(description='SimSiam Training')
 
+parser.add_argument('--epochs', default=1, type=int, help='number of total epochs to run')
+parser.add_argument('--batch-size', default=512, type=int, help='mini-batch size')
+parser.add_argument('--learning-rate', default=0.06, type=float,help='base learning rate')
 
-parser.add_argument('--epochs', default=1, type=int, metavar='N',
-                    help='number of total epochs to run')
-parser.add_argument('--batch-size', default=512, type=int, metavar='N',
-                    help='mini-batch size')
-parser.add_argument('--learning-rate', default=0.06, type=float, metavar='LR',
-                    help='base learning rate')
+parser.add_argument('--weight-decay', default=5e-4, type=float, help='weight decay')
 
-parser.add_argument('--weight-decay', default=5e-4, type=float, metavar='W',
-                    help='weight decay')
-
-parser.add_argument('--save-dir', default='./checkpoint/', type=Path,
-                    metavar='DIR', help='path to checkpoint directory')
 parser.add_argument('--model-path',default=None)
 
-parser.add_argument('--knn-k', default=200, type=int, metavar='N')
-parser.add_argument('--knn-t', default=0.1, type=int, metavar='N')
+parser.add_argument('--knn-k', default=200, type=int)
+parser.add_argument('--knn-t', default=0.1, type=int)
 
-parser.add_argument('--in-dim', default=512, type=int, metavar='N')
-parser.add_argument('--h-dim', default=512, type=int, metavar='N')
-parser.add_argument('--out-dim', default=1024, type=int, metavar='N')
-parser.add_argument('--seed', default=42, type=int, metavar='N')
+parser.add_argument('--in-dim', default=512, type=int)
+parser.add_argument('--h-dim', default=512, type=int)
+parser.add_argument('--out-dim', default=1024, type=int)
+parser.add_argument('--seed', default=42, type=int)
 
-parser.add_argument('--save_dir', default = '/gdrive/MyDrive/simsiam/', type=str)
+parser.add_argument('--save-dir', default = '/gdrive/MyDrive/simsiam/', type=str)
 parser.add_argument('--exp-name', default = 'resnet_2048_512', type=str)
-
 args=parser.parse_args()
-logger = TensorBoardLogger(os.path.join(gdrive_path,exp_name), name="tensorboard")
+
 
 class SimSiam(BenchmarkModule):
 
-    def __init__(self, dataloader_kNN, gpus=1, classes=10, knn_k=args.knn_k, knn_t=args.knn_t, in_dim=agrs.in_dim,h_dim=args.h_dim,out_dim=args.out_dim,model_path=None):
+    def __init__(self, dataloader_kNN, gpus=1, classes=10, knn_k=args.knn_k, knn_t=args.knn_t, in_dim=args.in_dim,h_dim=args.h_dim,out_dim=args.out_dim,model_path=None):
         super().__init__(dataloader_kNN, gpus, classes, knn_k, knn_t)
         self.resnet = resnet18()   #torchvision.models.resnet18(pretrained=False)
         self.resnet.fc = nn.Sequential(nn.Linear(in_dim, out_dim, bias=False),  #projection
@@ -95,14 +88,15 @@ class SimSiam(BenchmarkModule):
         return [optimizer], [scheduler]
 
 if __name__ == '__main__':
+    seed_everything(args.seed)
 
     log_dir = os.path.join(args.save_dir,args.exp_name,'tensorboard')
     save_dir = os.path.join(args.save_dir,args.exp_name,'model.ckpt')
 
-    seed_everything(args.seed)
+    logger = TensorBoardLogger(os.path.join(args.save_dir,args.exp_name), name="tensorboard")
 
     early_stop_callback = EarlyStopping(monitor='kNN_accuracy', min_delta=0.00, patience=5, verbose=True, mode='min')
-    checkpoint_callback = ModelCheckpoint( monitor='kNN_accuracy', dirpath= os.path.join(gdrive_path,exp_name,'checkpoints'), filename='resnet-epoch-{epoch}-acc-{kNN_accuracy:.2f}', mode='max')
+    checkpoint_callback = ModelCheckpoint( monitor='kNN_accuracy', dirpath= os.path.join(args.save_dir,args.exp_name,'checkpoints'), filename='resnet-epoch-{epoch}-acc-{kNN_accuracy:.2f}', mode='max')
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     knn_train_loader, knn_val_loader=cifar10_loader(args.batch_size)
