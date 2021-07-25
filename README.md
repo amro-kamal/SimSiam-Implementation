@@ -26,19 +26,20 @@ lightning-bolts==0.3.4
                 --save-dir='./simsiam'        #path to save the model and tensorboard logs 
 ```
 
-### KNN classifier acccuracy after just 180 epoch is 81% (in the paper they trained the model for 800 epochs! to get 91.8%)
+### KNN classifier acccuracy after just 180 epoch is 81% (in the paper they trained the model for 800 epochs to get 91.8%)
 <img width="600" alt="Screen Shot 2021-07-25 at 00 14 44" src="https://user-images.githubusercontent.com/37993690/126883827-44a66a2e-7867-4e88-9499-83451b9f0174.png">
 
 ### Training loss
 <img width="600" alt="Screen Shot 2021-07-25 at 00 15 56" src="https://user-images.githubusercontent.com/37993690/126883872-ea9d605d-2dc0-44d5-8a83-259b4702e168.png">
 
 ### Learning rate for SGD (10 epochs warm-up + consine)
-<img width="600" alt="Screen Shot 2021-07-25 at 00 15 35" src="https://user-images.githubusercontent.com/37993690/126883842-90d9b3c8-4ec5-47b8-aebf-86bad534605c.png
+<img width="600" alt="Screen Shot 2021-07-25 at 00 15 35" src="https://user-images.githubusercontent.com/37993690/126884424-ceba149b-699e-43ee-831c-e548ee02550d.png">
+
                                                                
                                                                
-#TODO
+### TODO
  1. Training for 800 epoch.
- 2. Training a linear classifier on top of the model.
+ 2. Training a linear classifier on top of the backbone model.
  3. Fine tuning the backbone model on 10% of the labeled data .                                                             
                                                                
 
