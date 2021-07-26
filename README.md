@@ -34,7 +34,20 @@ lightning-bolts==0.3.4
 ### Learning rate for SGD (10 epochs warm-up + consine)
 <img width="600" alt="Screen Shot 2021-07-25 at 00 15 35" src="https://user-images.githubusercontent.com/37993690/126884424-ceba149b-699e-43ee-831c-e548ee02550d.png">
 
-                                                               
+ ## Ablation Study:
+ I did two experiments to test the importance of two parts of the model:
+ 1. The stop gradient
+ 2. The Prediction MLP
+ 
+ The results are the same for the two expriments. If we remove either the stop gradient or the prediction MLP, the model will fall in a mode collapse giving us a trivial solution. Alghouh the trivial solution gives very low still, but at the same time the accuracy stops at around 30%.
+ I trained the model for 50 epochs 3 times, once without stop gradient, once without the prediction MLP, and the last time was with both of them just for comparison. 
+ 
+ red:with both stop gradient and prediction MLP / orange: without stop gradient / blue: without prediction MLP
+ <img width="600" alt="Screen Shot 2021-07-26 at 14 37 53" src="https://user-images.githubusercontent.com/37993690/127009033-9f65d483-a30e-4d8b-86a2-97976e7515e4.png">
+ 
+<img width="600" alt="Screen Shot 2021-07-26 at 14 37 42" src="https://user-images.githubusercontent.com/37993690/127009061-97d3cc71-1ef3-4b87-982b-b83ffbca7717.png">
+
+ 
                                                                
 ### TODO
  1. Training for 800 epoch.
