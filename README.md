@@ -42,9 +42,14 @@ lightning-bolts==0.3.4
 The results are the same for the two experiments. If we remove either the stop gradient or the prediction MLP, the model will fall in a mode collapse giving us a trivial solution. Although the trivial solution gives a very low loss,  the accuracy stops at around 30%. 
 I trained the model for 50 epochs 3 times, once without stop gradient, once without the prediction MLP, and the last time was with both of them (the baseline model). 
  
- red: **with both stop gradient and prediction MLP** / orange: **without stop gradient** / blue: **without prediction MLP**
+ red: **with both stop gradient and prediction MLP**
+ orange: **without stop gradient** 
+ blue: **without prediction MLP**
+ 
  <img width="600" alt="Screen Shot 2021-07-26 at 14 37 53" src="https://user-images.githubusercontent.com/37993690/127009033-9f65d483-a30e-4d8b-86a2-97976e7515e4.png">
+ 
  We can see that the when removing the stop gradient or the prediction MLP, the loss converges after just 1 epoch, at the same time the accuracy still low which means that we are facing a trivial solutions. We can summarize that with this similarity loss that simsiam uses, both the stop gradient and the prediction MLP are important ingredients of the model to avoid collapsing into trivial solution.
+ 
 <img width="600" alt="Screen Shot 2021-07-26 at 14 37 42" src="https://user-images.githubusercontent.com/37993690/127009061-97d3cc71-1ef3-4b87-982b-b83ffbca7717.png">
 
  
