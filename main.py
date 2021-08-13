@@ -21,6 +21,8 @@ from resnet import resnet18
 import os
 from knn_predictor import BenchmarkModule
 from data import simsiam_cifar10_loader, cifar10_loader
+import numpy as np
+
 
 parser = argparse.ArgumentParser(description='SimSiam Training')
 
@@ -39,7 +41,7 @@ parser.add_argument('--in-dim', default=512, type=int)
 parser.add_argument('--h-dim', default=512, type=int)
 parser.add_argument('--out-dim', default=1024, type=int)
 parser.add_argument('--seed', default=42, type=int)
-
+parser.add_argument('--ckpt-dir', default = '', type=str)
 parser.add_argument('--save-dir', default = '/gdrive/MyDrive/simsiam/', type=str)
 parser.add_argument('--exp-name', default = 'resnet_2048_512', type=str)
 args=parser.parse_args()
@@ -47,8 +49,11 @@ args=parser.parse_args()
 
 class SimSiam(BenchmarkModule):
 
-    def __init__(self, dataloader_kNN, gpus=1, classes=10, knn_k=args.knn_k, knn_t=args.knn_t, in_dim=args.in_dim,h_dim=args.h_dim,out_dim=args.out_dim,model_path=None):
-        super().__init__(dataloader_kNN, gpus, classes, knn_k, knn_t)
+    def __init__(self, knn_train_loader, gpus=1, classes=10, knn_k=args.knn_k, knn_t=args.knn_t, in_dim=args.in_dim,h_dim=args.h_dim,out_dim=args.out_dim,model_path=None,batch_size=args.batch_size):
+        self.save_hyperparameters()
+        self.knn_train_loader = knn_train_loader
+        self.batch_size = batch_size
+        super().__init__( gpus, classes, knn_k, knn_t)
         self.resnet = resnet18()   #torchvision.models.resnet18(pretrained=False)
         self.resnet.fc = nn.Sequential(nn.Linear(in_dim, out_dim, bias=False),  #projection
                                         nn.BatchNorm1d(out_dim),
@@ -87,24 +92,43 @@ class SimSiam(BenchmarkModule):
         scheduler = pl_bolts.optimizers.lr_scheduler.LinearWarmupCosineAnnealingLR(optimizer=optimizer, warmup_epochs=10, max_epochs=800, warmup_start_lr=0.0, eta_min=0.0, last_epoch=- 1)
         return [optimizer], [scheduler]
 
+
 if __name__ == '__main__':
     seed_everything(args.seed)
 
     log_dir = os.path.join(args.save_dir,args.exp_name,'tensorboard')
-    save_dir = os.path.join(args.save_dir,args.exp_name,'model.ckpt')
-
     logger = TensorBoardLogger(os.path.join(args.save_dir,args.exp_name), name="tensorboard")
 
-    early_stop_callback = EarlyStopping(monitor='kNN_accuracy', min_delta=0.00, patience=5, verbose=True, mode='min')
-    checkpoint_callback = ModelCheckpoint( monitor='kNN_accuracy', dirpath= os.path.join(args.save_dir,args.exp_name,'checkpoints'), filename='resnet-epoch-{epoch}-acc-{kNN_accuracy:.2f}', mode='max')
-    lr_monitor = LearningRateMonitor(logging_interval='step')
 
-    knn_train_loader, knn_val_loader=cifar10_loader(args.batch_size)
-    simsiam = SimSiam(knn_train_loader,model_path=args.model_path)
-    trainer = Trainer( gpus=1, max_epochs=args.epochs, min_epochs=1, auto_lr_find=False, auto_scale_batch_size=False,
-                      progress_bar_refresh_rate=1,callbacks=[lr_monitor],logger=logger)
+    #callbacks
+    early_stoping_callback = EarlyStopping(monitor='kNN_accuracy', min_delta=0.00, patience=20, verbose=True, mode='min')
+    lr_monitor = LearningRateMonitor(logging_interval='step')
+    checkpoint_callback = ModelCheckpoint( monitor='kNN_accuracy', dirpath= os.path.join(args.save_dir,args.exp_name,'checkpoints'),
+                          filename='resnet-epoch-{epoch}-acc-{kNN_accuracy:.2f}', mode='max',
+                          every_n_val_epochs=2, save_top_k=1, save_last=True)
+    
+    #model init
+    knn_train_loader, knn_val_loader = cifar10_loader(args.batch_size)
+    if args.ckpt_dir == '':
+        simsiam = SimSiam(knn_train_loader=knn_train_loader, model_path=args.model_path)
+        callbacks = [lr_monitor,checkpoint_callback]
+        trainer = Trainer( gpus=1, max_epochs=args.epochs, min_epochs=1, auto_lr_find=False, auto_scale_batch_size=False,
+                      progress_bar_refresh_rate=1,callbacks=callbacks,logger=logger)
+    else:
+        print('____________________________________________________')
+        print('Loading model weights from checkpoint...')
+        simsiam = SimSiam(model_path=args.model_path)
+        # simsiam = SimSiam.load_from_checkpoint(checkpoint_path=args.ckpt_path, strict=False)#, **args.__dict__)
+        # callbacks = [ModelCheckpoint(dirpath=args.ckpt_dir)]
+        print('____________________________________________________')
+        trainer = Trainer( gpus=1, resume_from_checkpoint=args.ckpt_dir)
 
     train_loader, _ = simsiam_cifar10_loader(args.batch_size)
     
     trainer.fit(simsiam, train_loader, knn_val_loader)
+    #checkpoint_callback.best_model_path
+
+    #saving the final model
+    save_dir = os.path.join(args.save_dir,args.exp_name,'final_model.ckpt')
     save({'resnet':simsiam.resnet.state_dict(),'predictor':simsiam.predictor.state_dict()},  save_dir)
+
