@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -86,10 +85,10 @@ class BenchmarkModule(pl.LightningModule):
         self.resnet.eval()
         self.feature_bank = []
         self.targets_bank = []
-        # knn_train_loader, _=cifar10_loader(self.batch_size)
+        self.dataloader_kNN, _ = cifar10_loader(self.batch_size)
 
         with torch.no_grad():
-            for data in self.knn_train_loader:
+            for data in self.dataloader_kNN:
                 # img, target, _ = data
                 img, target = data
                 if self.gpus > 0:
