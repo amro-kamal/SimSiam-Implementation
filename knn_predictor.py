@@ -1,7 +1,12 @@
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
+import numpy as np
+from data import cifar10_loader
+import copy
+import torchvision.transforms as transforms
 
 # This for kNN prediction is from here:
 # https://github.com/IgorSusmelj/barlowtwins/blob/main/utils.py
@@ -46,11 +51,10 @@ class BenchmarkModule(pl.LightningModule):
     We can access the highest accuracy during a kNN prediction using the 
     max_accuracy attribute.
     """
-    def __init__(self, dataloader_kNN, gpus, classes, knn_k, knn_t):
+    def __init__(self, gpus, classes, knn_k, knn_t):
         super().__init__()
         self.resnet = nn.Module()
         self.max_accuracy = 0.0
-        self.dataloader_kNN = dataloader_kNN
         self.gpus = gpus
         self.classes = classes
         self.knn_k = knn_k
@@ -58,8 +62,18 @@ class BenchmarkModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop. It is independent of forward
-
+       
         (x1,x2), y = batch
+        while True:
+          lmbda = np.random.beta(2, 1)
+          if lmbda>0.7 and lmbda<0.85:
+            break      
+
+        index = torch.randperm(x1.shape[0]) 
+        x1 = lmbda * x1 + (1-lmbda) * x2[index]
+        index = torch.randperm(x1.shape[0])
+        x2 = lmbda * x2 + (1-lmbda) * x1[index]
+
         z1, z2 = self.resnet(x1), self.resnet(x2) # projections, n-by-d
         p1, p2 = self.predictor(z1), self.predictor(z2) # predictions, n-by-d
 
@@ -72,8 +86,10 @@ class BenchmarkModule(pl.LightningModule):
         self.resnet.eval()
         self.feature_bank = []
         self.targets_bank = []
+        # knn_train_loader, _=cifar10_loader(self.batch_size)
+
         with torch.no_grad():
-            for data in self.dataloader_kNN:
+            for data in self.knn_train_loader:
                 # img, target, _ = data
                 img, target = data
                 if self.gpus > 0:
