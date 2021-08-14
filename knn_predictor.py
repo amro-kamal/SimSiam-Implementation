@@ -63,15 +63,6 @@ class BenchmarkModule(pl.LightningModule):
         # training_step defines the train loop. It is independent of forward
        
         (x1,x2), y = batch
-        while True:
-          lmbda = np.random.beta(2, 1)
-          if lmbda>0.7 and lmbda<0.85:
-            break      
-
-        index = torch.randperm(x1.shape[0]) 
-        x1 = lmbda * x1 + (1-lmbda) * x2[index]
-        index = torch.randperm(x1.shape[0])
-        x2 = lmbda * x2 + (1-lmbda) * x1[index]
 
         z1, z2 = self.resnet(x1), self.resnet(x2) # projections, n-by-d
         p1, p2 = self.predictor(z1), self.predictor(z2) # predictions, n-by-d
