@@ -42,6 +42,8 @@ parser.add_argument('--seed', default=42, type=int)
 parser.add_argument('--ckpt-dir', default = '', type=str)
 parser.add_argument('--save-dir', default = '/gdrive/MyDrive/simsiam/', type=str)
 parser.add_argument('--exp-name', default = 'resnet_2048_512', type=str)
+parser.add_argument('--version', default = None)
+
 args=parser.parse_args()
 
 
@@ -91,7 +93,7 @@ if __name__ == '__main__':
     seed_everything(args.seed)
 
     log_dir = os.path.join(args.save_dir,args.exp_name,'tensorboard')
-    logger = TensorBoardLogger(os.path.join(args.save_dir,args.exp_name), name="tensorboard")
+    logger = TensorBoardLogger(os.path.join(args.save_dir,args.exp_name), name="tensorboard", version=args.version)
 
     #callbacks
     early_stoping_callback = EarlyStopping(monitor='kNN_accuracy', min_delta=0.00, patience=20, verbose=True, mode='min')
@@ -99,11 +101,11 @@ if __name__ == '__main__':
     checkpoint_callback = ModelCheckpoint( monitor='kNN_accuracy', dirpath= os.path.join(args.save_dir,args.exp_name,'checkpoints'),
                           filename='resnet-epoch-{epoch}-acc-{kNN_accuracy:.2f}', mode='max',
                           every_n_val_epochs=2, save_top_k=1, save_last=True)
-    
+    callbacks = [lr_monitor,checkpoint_callback]
+
     #model init
     if args.ckpt_dir == '':
         simsiam = SimSiam(model_path=args.model_path)
-        callbacks = [lr_monitor,checkpoint_callback]
         trainer = Trainer( gpus=1, max_epochs=args.epochs, min_epochs=1, auto_lr_find=False, auto_scale_batch_size=False,
                       progress_bar_refresh_rate=1,callbacks=callbacks,logger=logger)
     else:
@@ -111,7 +113,6 @@ if __name__ == '__main__':
         print('Loading model weights from checkpoint...')
         simsiam = SimSiam(model_path=args.model_path)
         # simsiam = SimSiam.load_from_checkpoint(checkpoint_path=args.ckpt_path, strict=False)#, **args.__dict__)
-        # callbacks = [ModelCheckpoint(dirpath=args.ckpt_dir)]
         print('____________________________________________________')
         trainer = Trainer(gpus =1, resume_from_checkpoint=args.ckpt_dir)
 
