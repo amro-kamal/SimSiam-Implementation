@@ -1,5 +1,5 @@
 # SimSiam-Implementation
-A pytorch Lightning implementation for the SimSiam  [Exploring Simple Siamese Representation Learning](https://arxiv.org/abs/2011.10566)
+A pytorch Lightning implementation for SimSiam  [Exploring Simple Siamese Representation Learning](https://arxiv.org/abs/2011.10566)
 
 The backbone encoder is resnet18. I used the cifar10 variant of resnet18 from this [repo](https://github.com/huyvnphan/PyTorch_CIFAR10/blob/master/cifar10_models/resnet.py) which gives an extremely better results for cifar10 than torchvision resnet18 model. 
 
