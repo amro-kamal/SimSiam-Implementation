@@ -100,7 +100,7 @@ if __name__ == '__main__':
     lr_monitor = LearningRateMonitor(logging_interval='step')
     checkpoint_callback = ModelCheckpoint( monitor='kNN_accuracy', dirpath= os.path.join(args.save_dir,args.exp_name,'checkpoints'),
                           filename='resnet-epoch-{epoch}-acc-{kNN_accuracy:.2f}', mode='max',
-                          every_n_val_epochs=2, save_top_k=1, save_last=True)
+                          every_n_val_epochs=20, save_top_k=1, save_last=True)
     callbacks = [lr_monitor,checkpoint_callback]
 
     #model init
@@ -112,9 +112,9 @@ if __name__ == '__main__':
         print('____________________________________________________')
         print('Loading model weights from checkpoint...')
         simsiam = SimSiam(model_path=args.model_path)
-        # simsiam = SimSiam.load_from_checkpoint(checkpoint_path=args.ckpt_path, strict=False)#, **args.__dict__)
+        simsiam = SimSiam.load_from_checkpoint(checkpoint_path=args.ckpt_dir, strict=False)#, **args.__dict__)
         print('____________________________________________________')
-        trainer = Trainer(gpus =1, resume_from_checkpoint=args.ckpt_dir)
+        trainer = Trainer(gpus =1,max_epochs=args.epochs, callbacks=callbacks,resume_from_checkpoint=args.ckpt_dir)
 
     _, knn_val_loader = cifar10_loader(args.batch_size)
     train_loader, _ = simsiam_cifar10_loader(args.batch_size)
