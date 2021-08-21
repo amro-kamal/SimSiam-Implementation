@@ -25,6 +25,12 @@ lightning-bolts==0.3.4
                 --save-dir='./simsiam'        #path to save the model and tensorboard logs 
 ```
 
+**Results after 800 epochs on cifar10**
+| Model         | Method    | KNN acc | linear classifier|
+| ------------- | ----------| --------|------------------|
+| Resnet18      | SimSiam   | 88.7    | 90.1             |
+
+
 ### KNN classifier acccuracy  after 800 epochs of training the accuracy is 88.7% (in the paper they trained the model for 800 epochs to get 91.8%)
 <img width="600" alt="Screen Shot 2021-08-21 at 15 57 19" src="https://user-images.githubusercontent.com/37993690/130327712-05e04210-16f3-427e-80ad-aa5daa999683.png">
 
