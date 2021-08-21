@@ -88,8 +88,3 @@ I trained the model for 50 epochs 3 times, once without stop gradient, once with
 
  
                                                                
-### TODO
- 1. Training a linear classifier on top of the backbone model.
- 2. Fine tuning the backbone model on 10% of the labeled data .                                                             
-                                                               
-
