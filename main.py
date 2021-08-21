@@ -22,34 +22,16 @@ import os
 from knn_predictor import BenchmarkModule
 from data import simsiam_cifar10_loader, cifar10_loader
 
-parser = argparse.ArgumentParser(description='SimSiam Training')
 
-parser.add_argument('--epochs', default=1, type=int, help='number of total epochs to run')
-parser.add_argument('--batch-size', default=512, type=int, help='mini-batch size')
-parser.add_argument('--learning-rate', default=0.06, type=float,help='base learning rate')
-
-parser.add_argument('--weight-decay', default=5e-4, type=float, help='weight decay')
-
-parser.add_argument('--model-path',default=None)
-
-parser.add_argument('--knn-k', default=200, type=int)
-parser.add_argument('--knn-t', default=0.1, type=int)
-
-parser.add_argument('--in-dim', default=512, type=int)
-parser.add_argument('--h-dim', default=512, type=int)
-parser.add_argument('--out-dim', default=1024, type=int)
-parser.add_argument('--seed', default=42, type=int)
-parser.add_argument('--ckpt-dir', default = '', type=str)
-parser.add_argument('--save-dir', default = '/gdrive/MyDrive/simsiam/', type=str)
-parser.add_argument('--exp-name', default = 'resnet_2048_512', type=str)
-parser.add_argument('--version', default = None)
-
-args=parser.parse_args()
 
 
 class SimSiam(BenchmarkModule):
 
-    def __init__(self, gpus=1, classes=10, knn_k=args.knn_k, knn_t=args.knn_t, in_dim=args.in_dim,h_dim=args.h_dim,out_dim=args.out_dim,model_path=None,batch_size=args.batch_size):
+    # def __init__(self, gpus=1, classes=10, knn_k=args.knn_k, knn_t=args.knn_t, in_dim=args.in_dim,h_dim=args.h_dim,out_dim=args.out_dim,model_path=None,batch_size=args.batch_size):
+    def __init__(self, gpus=1, classes=10, args=None, knn_k=200, knn_t=0.1, in_dim=512,h_dim=512,out_dim=512,model_path=None,batch_size=512):
+        if args:
+          knn_k=args.knn_k; knn_t=args.knn_t; in_dim=args.in_dim; h_dim=args.h_dim; out_dim=args.out_dim; model_path=None;batch_size=args.batch_size
+       
         self.save_hyperparameters()
         self.batch_size = batch_size
         super().__init__( gpus, classes, knn_k, knn_t)
@@ -90,6 +72,30 @@ class SimSiam(BenchmarkModule):
         return [optimizer], [scheduler]
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='SimSiam Training')
+
+    parser.add_argument('--epochs', default=1, type=int, help='number of total epochs to run')
+    parser.add_argument('--batch-size', default=512, type=int, help='mini-batch size')
+    parser.add_argument('--learning-rate', default=0.06, type=float,help='base learning rate')
+
+    parser.add_argument('--weight-decay', default=5e-4, type=float, help='weight decay')
+
+    parser.add_argument('--model-path',default=None)
+
+    parser.add_argument('--knn-k', default=200, type=int)
+    parser.add_argument('--knn-t', default=0.1, type=int)
+
+    parser.add_argument('--in-dim', default=512, type=int)
+    parser.add_argument('--h-dim', default=512, type=int)
+    parser.add_argument('--out-dim', default=1024, type=int)
+    parser.add_argument('--seed', default=42, type=int)
+    parser.add_argument('--ckpt-dir', default = '', type=str)
+    parser.add_argument('--save-dir', default = '/gdrive/MyDrive/simsiam/', type=str)
+    parser.add_argument('--exp-name', default = 'resnet_2048_512', type=str)
+    parser.add_argument('--version', default = None)
+
+    args=parser.parse_args()
     seed_everything(args.seed)
 
     log_dir = os.path.join(args.save_dir,args.exp_name,'tensorboard')
@@ -105,13 +111,13 @@ if __name__ == '__main__':
 
     #model init
     if args.ckpt_dir == '':
-        simsiam = SimSiam(model_path=args.model_path)
+        simsiam = SimSiam(args=args,model_path=args.model_path)
         trainer = Trainer( gpus=1, max_epochs=args.epochs, min_epochs=1, auto_lr_find=False, auto_scale_batch_size=False,
                       progress_bar_refresh_rate=1,callbacks=callbacks,logger=logger)
     else:
         print('____________________________________________________')
         print('Loading model weights from checkpoint...')
-        simsiam = SimSiam(model_path=args.model_path)
+        simsiam = SimSiam(args=args,model_path=args.model_path)
         simsiam = SimSiam.load_from_checkpoint(checkpoint_path=args.ckpt_dir, strict=False)#, **args.__dict__)
         print('____________________________________________________')
         trainer = Trainer(gpus =1,max_epochs=args.epochs, callbacks=callbacks,resume_from_checkpoint=args.ckpt_dir)
