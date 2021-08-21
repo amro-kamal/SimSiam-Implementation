@@ -3,14 +3,13 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-from tqdm.notebook import tqdm
 import os
 import logging
 from logging import getLogger, INFO, FileHandler,  Formatter,  StreamHandler
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-import parser
-
+import argparse
+from main import SimSiam
 
 def predict(model, test_loader,device):
     """Measures the accuracy of a model on a data set.""" 
@@ -25,20 +24,11 @@ def predict(model, test_loader,device):
         for images, targets in tqdm(test_loader):
             # Forward pass.
             output = model(images.to(device)) #[bs x out_dim]
-            # print(output.shape)
-            # Get the label corresponding to the highest predicted probability.
-            # print(output.argmax(dim=1, keepdim=True).shape)
             preds+= (output.cpu()) #[bs x 1]
-            # print(f'output.shape {output.shape}')
             labels+=targets
-            # print('preds',torch.tensor(preds).shape)
-    #TODO
-    #convert to list
-    # for i,p in enumerate(preds):
-    #   preds[i]=preds[i].item()
-    # print(f'preds [0] shape {preds[0]}')
-    # return torch.tensor(preds,dtype=torch.float32) , torch.tensor(labels,dtype=torch.float32)
+   
     return preds , labels
+
 class LC_Dataset(Dataset):
     def __init__(self, features, labels):
         """
@@ -57,7 +47,7 @@ class LC_Dataset(Dataset):
     def __getitem__(self, idx):
         return ( self.features[idx],self.labels[idx] )
 
-def cifar10_loader(batch_size,fine_tune=False):
+def cifar10_loader(batch_size,finetune=False):
     train_transforms = transforms.Compose([
                                         # transforms.RandomResizedCrop(32) ,
                                         transforms.ToTensor()  ,
@@ -73,7 +63,7 @@ def cifar10_loader(batch_size,fine_tune=False):
 
 
     train_data = torchvision.datasets.CIFAR10('data/train',train=True,download=True, transform=train_transforms)
-    if fine_tune:
+    if finetune:
       train_data, _ = torch.utils.data.random_split(train_data, [10000, 40000])
 
     val_data = torchvision.datasets.CIFAR10('data/val',train=False,download=True, transform=val_transforms)
@@ -83,7 +73,6 @@ def cifar10_loader(batch_size,fine_tune=False):
 
     return train_loader, val_loader
 
-
 def train(model, train_loader , val_loader, args,criterion,optimizer,mixup=False,alpha = 1):
     """
        Simple training loop for PyTorch model.
@@ -92,27 +81,19 @@ def train(model, train_loader , val_loader, args,criterion,optimizer,mixup=False
     writer=SummaryWriter(os.path.join(args.save_path,'tensorboard',args.exp_name))
 
     device=torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    best_val_acc=0
-    # Make sure model is in training mode.
-    if args.load_model and args.load_path:
-      print('Loading the model from ckpt.....')
-      train_ckpt=torch.load(args.load_path)
-      model.load_state_dict(train_ckpt['model_state_dict'])
-      print('The model is ready!')
 
-    model.train()
     optimizer.zero_grad()
 
     # Move model to the device (CPU or GPU).
+    model.train()
     model.to(device)
     
     # Exponential moving average of the loss.
-    ema_loss = None
     losses=[]
     val_losses = []
     train_accs=[]
     val_accs=[]
-    CEL = criterion
+    best_val_acc=0
 
     print(f'----- Training on {device} -----')
     # Loop over epochs.
@@ -123,18 +104,10 @@ def train(model, train_loader , val_loader, args,criterion,optimizer,mixup=False
         # Loop over data.
         loop=tqdm(enumerate(train_loader , start =epoch*len(train_loader)),leave=False, total=len(train_loader))
         for step , (images, target) in loop:
-            if args.mixup:
-              lam = np.random.beta(alpha, alpha)
-              ids = torch.randperm(images.shape[0])
-              x = (lam * images + (1. - lam) * images[ids]).to(device)
-              # Forward pass
-              output = model(x)
 
-              loss = lam * CEL(output, target.to(device)) + (1-lam) * CEL(output, target[ids].to(device))
-            else:
-              # Forward pass.
-              output = model(images.to(device))
-              loss = CEL(output.to(device), target.to(device))
+            # Forward pass.
+            output = model(images.to(device))
+            loss = criterion(output, target.to(device))
 
             # Backward pass.
             loss.backward()
@@ -161,18 +134,18 @@ def train(model, train_loader , val_loader, args,criterion,optimizer,mixup=False
         losses.append(ema_loss)
         train_accs.append(train_acc)
 
-        val_acc, val_loss= test(model ,val_loader, device,CEL)
+        val_acc, val_loss= test(model ,val_loader, device,criterion)
         val_losses.append(val_loss)
+        val_accs.append(val_acc)
         writer.add_scalar('val loss', val_loss, global_step=epoch)
         writer.add_scalar('val acc', val_acc, global_step=epoch)
         writer.add_scalar('val eror', 1-val_acc, global_step=epoch)
 
-        val_accs.append(val_acc)
         if val_acc > best_val_acc and val_acc > args.min_val_acc_to_save:
             print(f'validation accuracy increased from {best_val_acc} to {val_acc}  , saving the model ....')
             #saving training ckpt
             chk_point={'model_sate_dict':model.state_dict(), 'epochs':epoch+1, 'best_val_acc':best_val_acc}
-            torch.save(chk_point, os.path.join(args.save_path,args.exp_name,model.ckpt))
+            torch.save(chk_point, os.path.join(args.save_path,args.exp_name,'model.ckpt'))
             best_val_acc=val_acc
         print('-------------------------------------------------------------')
         
@@ -218,7 +191,6 @@ def test(model, data_loader, device,criterion):
     
 
 if __name__=='__main__':
-    ckpt_path="../gdrive/MyDrive/simsiam/simsiam_800/checkpoints/resnet-epoch-epoch=599-acc-kNN_accuracy=88.71.ckpt"
     parser = argparse.ArgumentParser(description='Mixup Training')
 
     parser.add_argument('--epochs', default=1, type=int, help='number of total epochs to run')
@@ -228,53 +200,47 @@ if __name__=='__main__':
     parser.add_argument('--min-val-acc-to-save', default=30.0, type=float )
 
     parser.add_argument('--weight-decay', default=1e-4, type=float, help='weight decay')
-    parser.add_argument('--finetune',default=False)
+    parser.add_argument('--mode',default='linearclassifier')
     
-    parser.add_argument('--ckpt-path', default = ckpt_path, type=str)
+    parser.add_argument('--ckpt-path', default = '', type=str)
     parser.add_argument('--save-path', default = '', type=str)
 
-    parser.add_argument('--exp-name', default = 'resnet18_mixup', type=str)
+    parser.add_argument('--exp-name', default = 'resnet18', type=str)
     parser.add_argument('--seed', default=123, type=int)
 
     args=parser.parse_args()
-    
-    #get cifar10 dataset
-    cifar10_train_loader, cifar10_val_loader=cifar10_loader(batch_size=cfg['batch_size'])
-
-    
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.learning_rate,
-                      momentum=0.9, weight_decay=args.weight_decay)
-    criterion = torch.nn.CrossEntropyLoss()
-
-    print(f'train data {len(cifar10_train_loader.sampler)} examples')
-    print(f'val data {len(cifar10_val_loader.sampler)} examples')
 
     simsiam = SimSiam(model_path='')
     simsiam = SimSiam.load_from_checkpoint(checkpoint_path=args.ckpt_path, strict=False)#, **args.__dict__)
     
     resnet=simsiam.resnet
+    device=torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    print('Getting the feartures from resnet')
+    criterion = torch.nn.CrossEntropyLoss()
 
-    if args.finetune:
-      cifar10_train_loader, cifar10_val_loader=cifar10_loader(batch_size=cfg['batch_size'],finetune=True)
+    if args.mode=='finetune':
+      print('finetuining on 10% of cifar10')
+      cifar10_train_loader, cifar10_val_loader=cifar10_loader(batch_size=args.batch_size,finetune=True)
       resnet.fc=nn.Linear(512,10)
+      optimizer = torch.optim.Adam(resnet.parameters(), lr=args.learning_rate)#, momentum=0.9, weight_decay=args.weight_decay)
       train_accs , val_accs, losses, val_losses = train(resnet, cifar10_train_loader, cifar10_val_loader, args, criterion, optimizer)
 
-    else:
+    else: #'linearclassifier'
+
       resnet.fc=nn.Identity()
       #get cifar10 dataset
-      cifar10_train_loader, cifar10_val_loader=cifar10_loader(batch_size=cfg['batch_size'])
+      cifar10_train_loader, cifar10_val_loader=cifar10_loader(batch_size=args.batch_size)
       #get the 2048-dim features from the model
+      print('Getting the feartures from resnet')
       train_features, train_labels = predict(resnet , cifar10_train_loader ,device)
       #print(f'train_features shape {train_features.shape}')
       LC_train_dataset = LC_Dataset(train_features, train_labels)
-      cifar10_train_loader = DataLoader(LC_train_dataset,batch_size=cfg['batch_size'],shuffle=True,num_workers=2)
+      cifar10_train_loader = DataLoader(LC_train_dataset,batch_size=args.batch_size,shuffle=True,num_workers=2)
     
       val_features, val_labels=predict(resnet,cifar10_val_loader,device)
       LC_val_dataset=LC_Dataset(val_features, val_labels)
-      cifar10_val_loader=DataLoader(LC_val_dataset,batch_size=cfg['batch_size'],shuffle=True,num_workers=2)
+      cifar10_val_loader=DataLoader(LC_val_dataset,batch_size=args.batch_size,shuffle=True,num_workers=2)
       del resnet
       linear_classifer=nn.Sequential(nn.Linear(512,10))
-
+      optimizer=torch.optim.Adam(linear_classifer.parameters(), lr=0.3)
       train_accs , val_accs, losses, val_losses = train(linear_classifer, cifar10_train_loader, cifar10_val_loader, args, criterion, optimizer)
