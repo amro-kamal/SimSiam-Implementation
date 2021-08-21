@@ -15,20 +15,41 @@ lightning-bolts==0.3.4
 
 ### Install the requirements :
 ```
-!pip install -r req.txt
+pip install -r req.txt
 ```
 
 ### To train the model:
 ```
-!python main.py --batch-size=512 \
+python main.py --batch-size=512 \
                 --epochs=800\
                 --save-dir='./simsiam'        #path to save the model and tensorboard logs 
+```
+### To train a linear classifier on top of the model:
+```
+python finetune.py --batch-size=512\
+                --epochs 10\
+                --exp-name 'finetune_simsiam'\
+                --ckpt-path [path to pytorch lightning ckpt file]\
+                --save-path [path to save the model]\
+                --mode 'linearclassifier'
+
+```
+
+### To finetune the model with a linear classifier on top of the it on 10% of cifar10 dataset:
+```
+python finetune.py --batch-size=512\
+                --epochs 10\
+                --exp-name 'finetune_simsiam'\
+                --ckpt-path [path to pytorch lightning ckpt file]\
+                --save-path [path to save the model]\
+                --mode 'finetune'
+
 ```
 
 **Results after 800 epochs on cifar10**
 | Model         | Method    | KNN acc | linear classifier|
 | ------------- | ----------| --------|------------------|
-| Resnet18      | SimSiam   | 88.7    | 90.1             |
+| Resnet18      | SimSiam   | 88.7    | 90.57            |
 
 
 ### KNN classifier acccuracy  after 800 epochs of training the accuracy is 88.7% (in the paper they trained the model for 800 epochs to get 91.8%)
