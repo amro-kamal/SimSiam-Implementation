@@ -1,6 +1,9 @@
 # SimSiam-Implementation
 A pytorch Lightning implementation for SimSiam  [Exploring Simple Siamese Representation Learning](https://arxiv.org/abs/2011.10566)
 
+<img width="700" alt="Screen Shot 2021-08-22 at 00 43 34" src="https://user-images.githubusercontent.com/37993690/130338322-a10fc17c-62da-4952-97ed-768ae5bc5b3b.png">
+
+
 The backbone encoder is resnet18. I used the cifar10 variant of resnet18 from this [repo](https://github.com/huyvnphan/PyTorch_CIFAR10/blob/master/cifar10_models/resnet.py) which gives an extremely better results for cifar10 than torchvision resnet18 model. 
 
 For the Knn clasifier I used [this code](https://github.com/IgorSusmelj/barlowtwins/blob/main/utils.py). The features dimension is 1024 (The paper used features dimension of 2048 ). The hidden dimension of the prediction MLP is 512. The output dimension of the backbone model (resnet18 average pooling layer) is 512. 
